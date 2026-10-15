@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="theme-color" content="#1aad19" />
+<title>便利超市 · 收银小票</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { background: #ededed; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    color: #222;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 0;
+  }
+  .phone {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    background: #f6f6f6;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== 店招 ===== */
+  .store-bar {
+    background: #1aad19;
+    color: #fff;
+    padding: 22px 20px 20px;
+    text-align: center;
+  }
+  .store-bar .store { font-size: 22px; font-weight: 600; letter-spacing: 3px; }
+  .store-bar .sub { margin-top: 6px; font-size: 13px; opacity: .85; letter-spacing: 1px; }
+
+  /* ===== 小票卡片 ===== */
+  .receipt {
+    margin: -10px 14px 0;
+    background: #fff;
+    border-radius: 12px;
+    padding: 18px 18px 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.05);
+  }
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #999;
+    padding-bottom: 12px;
+    border-bottom: 1px dashed #ddd;
+  }
+  .item {
+    display: flex;
+    padding: 14px 0;
+    border-bottom: 1px dashed #ddd;
+  }
+  .item .info { flex: 1; min-width: 0; }
+  .item .name { font-size: 16px; font-weight: 500; }
+  .item .spec { margin-top: 4px; font-size: 12px; color: #999; }
+  .item .qty { margin-top: 6px; font-size: 12px; color: #999; }
+  .item .right { text-align: right; margin-left: 12px; }
+  .item .unit { font-size: 12px; color: #999; }
+  .item .line-total { margin-top: 6px; font-size: 17px; font-weight: 600; color: #222; }
+
+  .sum-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 0;
+  }
+  .sum-row .label { font-size: 15px; color: #555; }
+  .sum-row .total { font-size: 26px; font-weight: 700; color: #fa5151; }
+  .sum-row .total .yen { font-size: 17px; margin-right: 2px; }
+
+  /* ===== 支付按钮 ===== */
+  .pay-area { padding: 8px 14px 14px; }
+  .btn-pay {
+    width: 100%;
+    height: 50px;
+    border: none;
+    border-radius: 25px;
+    background: #1aad19;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 2px;
+  }
+  .btn-pay:active { background: #179516; }
+  .btn-pay:disabled { background: #9ed89e; }
+  .tip {
+    text-align: center;
+    font-size: 12px;
+    color: #aaa;
+    margin: 12px 0 20px;
+  }
+
+  /* ===== 语音播报 ===== */
+  .speak-row {
+    text-align: center;
+    padding: 2px 0 4px;
+  }
+  .btn-speak {
+    border: 1px solid #1aad19;
+    background: #f2fbf2;
+    color: #1aad19;
+    border-radius: 18px;
+    font-size: 13px;
+    padding: 7px 20px;
+    letter-spacing: 1px;
+  }
+  .btn-speak:active { background: #e2f6e2; }
+  .btn-speak[disabled] { opacity: .6; }
+
+  /* ===== 支付成功 ===== */
+  .success {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    padding: 44px 24px 24px;
+    background: #fff;
+    margin: -10px 14px 0;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.05);
+  }
+  .check {
+    width: 84px; height: 84px;
+    border: 4px solid #1aad19;
+    border-radius: 50%;
+    position: relative;
+  }
+  .check::after {
+    content: "";
+    position: absolute;
+    left: 27px; top: 14px;
+    width: 20px; height: 38px;
+    border: solid #1aad19;
+    border-width: 0 5px 5px 0;
+    transform: rotate(45deg);
+  }
+  .success h2 { margin-top: 22px; font-size: 22px; color: #1aad19; }
+  .success .paid { margin-top: 12px; font-size: 30px; font-weight: 700; color: #222; }
+  .success .paid .yen { font-size: 18px; }
+  .success .when { margin-top: 10px; font-size: 13px; color: #999; }
+  .success .bye { margin-top: 28px; font-size: 14px; color: #555; letter-spacing: 2px; }
+
+  /* ===== 错误页 ===== */
+  .error-box {
+    display: none;
+    margin: 30px 18px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 40px 22px;
+    text-align: center;
+  }
+  .error-box .big { font-size: 40px; }
+  .error-box .t { margin-top: 14px; font-size: 17px; font-weight: 600; }
+  .error-box .d { margin-top: 10px; font-size: 13px; color: #999; line-height: 1.7; }
+</style>
+</head>
+<body>
+<div class="phone">
+    <div class="store-bar">
+        <div class="store" id="store-name">便利超市</div>
+        <div class="sub">收 银 小 票</div>
+    </div>
+
+    <!-- 小票 -->
+    <div id="view-receipt">
+        <div class="receipt">
+            <div class="meta">
+                <span id="meta-order"></span>
+                <span id="meta-time"></span>
+            </div>
+            <div id="items"></div>
+            <div class="sum-row">
+                <span class="label">合计</span>
+                <span class="total"><span class="yen">¥</span><span id="total">0.00</span></span>
+            </div>
+        </div>
+        <div class="pay-area">
+            <div class="speak-row">
+                <button class="btn-speak" id="btn-speak" type="button">🔊 语音播报</button>
+            </div>
+            <button class="btn-pay" id="btn-pay" type="button">立即支付 ¥<span id="btn-amount">0.00</span></button>
+            <div class="tip">模拟收银演示 · 无真实扣款 · 便利店购物游戏</div>
+        </div>
+    </div>
+
+    <!-- 支付成功 -->
+    <div class="success" id="view-success">
+        <div class="check"></div>
+        <h2>支付成功</h2>
+        <div class="paid"><span class="yen">¥</span><span id="success-amount">0.00</span></div>
+        <div class="when" id="success-time"></div>
+        <div class="bye">欢迎再次光临</div>
+    </div>
+
+    <!-- 错误 -->
+    <div class="error-box" id="view-error">
+        <div class="big">🏷️</div>
+        <div class="t">小票内容无法识别</div>
+        <div class="d">请用手表「超市收银」应用重新显示二维码后再扫一次。<br/>（页面需通过 ?d= 参数接收商品数据）</div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    // 店名（需与手表端 js/main.js 的 STORE_NAME 保持一致）
+    var STORE_NAME = '便利超市';
+
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+    function formatTime(epochSeconds) {
+        var d = new Date(epochSeconds * 1000);
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+               ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+    }
+
+    function money(n) { return Number(n).toFixed(2); }
+
+    // 金额转语音读法：2.50 → "2.5"，5.00 → "5"（TTS 读「元」）
+    function yuanSpeech(n) {
+        return String(Math.round(Number(n) * 100) / 100);
+    }
+
+    // ===== 语音播报（Web Speech API，系统本地 TTS，零外部请求） =====
+
+    var speechOK = ('speechSynthesis' in window) &&
+                   (typeof SpeechSynthesisUtterance !== 'undefined');
+    var $btnSpeak = document.getElementById('btn-speak');
+    var BTN_SPEAK_IDLE = '🔊 语音播报';
+
+    function makeUtterance(text) {
+        var u = new SpeechSynthesisUtterance(text);
+        u.lang = 'zh-CN';
+        u.rate = 0.95;
+        u.pitch = 1;
+        // 显式挑一个中文音色（列表可能异步加载，挑不到就靠 lang 走系统默认）
+        var voices = window.speechSynthesis.getVoices ? window.speechSynthesis.getVoices() : [];
+        for (var i = 0; i < voices.length; i++) {
+            if (voices[i].lang && voices[i].lang.toLowerCase().indexOf('zh') === 0) {
+                u.voice = voices[i];
+                break;
+            }
+        }
+        return u;
+    }
+
+    function speak(text) {
+        if (!speechOK) { return false; }
+        try {
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(makeUtterance(text));
+            return true;
+        } catch (e) { return false; }
+    }
+
+    function setSpeakingUI(speaking) {
+        if (!$btnSpeak) { return; }
+        $btnSpeak.disabled = !!speaking;
+        $btnSpeak.textContent = speaking ? '播报中…' : BTN_SPEAK_IDLE;
+    }
+
+    // 尝试自动播报；iOS Safari / 微信 WKWebView 要求先有一次用户交互，
+    // 首条语音没真正开始（onstart 未触发）时，在用户首次触碰页面时补播一次。
+    function autoAnnounce(text) {
+        if (!speechOK || !text) {
+            if ($btnSpeak && !speechOK) {
+                $btnSpeak.addEventListener('click', function () {
+                    $btnSpeak.textContent = '当前浏览器不支持';
+                    setTimeout(function () { $btnSpeak.textContent = BTN_SPEAK_IDLE; }, 1500);
+                });
+            }
+            return;
+        }
+
+        var started = false;
+        var retryOnce = function () {
+            if (started) { return; }
+            var u2 = makeUtterance(text);
+            u2.onstart = function () { started = true; setSpeakingUI(false); };
+            u2.onend = function () { setSpeakingUI(false); };
+            u2.onerror = function () { setSpeakingUI(false); };
+            try { window.speechSynthesis.cancel(); window.speechSynthesis.speak(u2); } catch (e) {}
+        };
+
+        var u = makeUtterance(text);
+        u.onstart = function () {
+            started = true;
+            document.removeEventListener('touchstart', unlock, true);
+            document.removeEventListener('click', unlock, true);
+            setSpeakingUI(true);
+        };
+        u.onend = function () { setSpeakingUI(false); };
+        u.onerror = function () { setSpeakingUI(false); };
+        try { window.speechSynthesis.speak(u); } catch (e) {}
+
+        function unlock(ev) {
+            document.removeEventListener('touchstart', unlock, true);
+            document.removeEventListener('click', unlock, true);
+            // 点的是重播按钮时不补播：按钮自己的 click 处理会发声，避免重复
+            if (ev && ev.target === $btnSpeak) { return; }
+            retryOnce();
+        }
+        // 轻触页面任意位置即解锁补播（只补一次）
+        document.addEventListener('touchstart', unlock, { capture: true, passive: true });
+        document.addEventListener('click', unlock, { capture: true });
+
+        // 手动重播按钮（语音列表异步加载也没关系，speak 时现取）
+        $btnSpeak.addEventListener('click', function () {
+            speak(text);
+            setSpeakingUI(true);
+        });
+    }
+
+    // base64url(JSON of UTF-8 bytes) → 对象
+    function decodePayload(s) {
+        s = s.replace(/-/g, '+').replace(/_/g, '/');
+        while (s.length % 4) { s += '='; }
+        var bin = atob(s);
+        var bytes = new Uint8Array(bin.length);
+        for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
+        return JSON.parse(new TextDecoder('utf-8').decode(bytes));
+    }
+
+    function showError() {
+        document.getElementById('view-receipt').style.display = 'none';
+        document.getElementById('view-error').style.display = 'block';
+    }
+
+    function getData() {
+        var p = new URLSearchParams(location.search);
+        if (p.get('demo')) {
+            return {
+                n: '可口可乐', sp: '330ml 罐装', p: 2.50, q: 1,
+                o: '4821', t: Math.floor(Date.now() / 1000)
+            };
+        }
+        var d = p.get('d');
+        if (!d) { return null; }
+        return decodePayload(d);  // 非法数据会抛异常
+    }
+
+    function render(data) {
+        // 兼容两种载荷：单件 {n,sp,p,q} 或购物车 {i:[{n,sp,p,q}, ...]}
+        var items;
+        if (Object.prototype.toString.call(data.i) === '[object Array]' && data.i.length) {
+            items = data.i;
+        } else if (data.n) {
+            items = [{ n: data.n, sp: data.sp, p: data.p, q: data.q || 1 }];
+        } else {
+            throw new Error('bad payload');
+        }
+
+        var total = 0;
+        var box = document.getElementById('items');
+        box.innerHTML = '';
+        items.forEach(function (it) {
+            var qty = it.q || 1;
+            var lineTotal = Number(it.p) * qty;
+            total += lineTotal;
+
+            var row = document.createElement('div');
+            row.className = 'item';
+            row.innerHTML =
+                '<div class="info">' +
+                    '<div class="name"></div>' +
+                    '<div class="spec"></div>' +
+                    '<div class="qty">× ' + qty + '</div>' +
+                '</div>' +
+                '<div class="right">' +
+                    '<div class="unit">¥' + money(it.p) + ' / 件</div>' +
+                    '<div class="line-total">¥' + money(lineTotal) + '</div>' +
+                '</div>';
+            row.querySelector('.name').textContent = it.n;
+            row.querySelector('.spec').textContent = it.sp || '';
+            box.appendChild(row);
+        });
+
+        document.getElementById('total').textContent = money(total);
+        document.getElementById('btn-amount').textContent = money(total);
+
+        var orderNo = data.o ? ('单号 No.' + data.o) : '';
+        document.getElementById('meta-order').textContent = orderNo;
+        document.getElementById('meta-time').textContent =
+            data.t ? formatTime(data.t) : formatTime(Math.floor(Date.now() / 1000));
+
+        document.getElementById('store-name').textContent =
+            data.s || STORE_NAME;
+
+        document.getElementById('btn-pay').addEventListener('click', function () {
+            var btn = this;
+            btn.disabled = true;
+            btn.textContent = '支付中…';
+            // 模拟网络延迟
+            setTimeout(function () {
+                document.getElementById('view-receipt').style.display = 'none';
+                var ok = document.getElementById('view-success');
+                ok.style.display = 'flex';
+                document.getElementById('success-amount').textContent = money(total);
+                var now = new Date();
+                document.getElementById('success-time').textContent =
+                    formatTime(Math.floor(now.getTime() / 1000));
+                speak('支付成功，' + yuanSpeech(total) + ' 元');
+            }, 600);
+        });
+
+        // 扫码打开后自动播报：单件「商品名，X 元」；购物车「共 N 件，合计 X 元」
+        var announceText = items.length === 1
+            ? (items[0].n + '，' + yuanSpeech(items[0].p) + ' 元')
+            : ('共 ' + items.length + ' 件商品，合计 ' + yuanSpeech(total) + ' 元');
+        autoAnnounce(announceText);
+    }
+
+    try {
+        var data = getData();
+        if (!data) { showError(); return; }
+        render(data);
+    } catch (e) {
+        showError();
+    }
+})();
+</script>
+</body>
+</html>
