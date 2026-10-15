@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>进制转换器</title>
+<style>
+*{box-sizing:border-box;font-family:system-ui, sans-serif;}
+body{max-width:500px;margin:30px auto;padding:0 16px;background:#f7f8fa;}
+.card{background:white;padding:24px;border-radius:16px;box-shadow:0 2px 12px #00000012;}
+h2{margin-top:0;text-align:center;color:#222;}
+.form-item{margin-bottom:16px;}
+label{display:block;margin-bottom:6px;font-weight:500;color:#333;}
+input,select{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:16px;}
+button{width:100%;padding:12px;border:none;border-radius:8px;background:#2563eb;color:white;font-size:16px;cursor:pointer;margin-top:8px;}
+button:hover{background:#1d4ed8;}
+.desc{margin-top:16px;color:#666;font-size:14px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>进制转换器</h2>
+  <div class="form-item">
+    <label>输入进制</label>
+    <select id="fromBase">
+      <option value="2">二进制(2)</option>
+      <option value="8">八进制(8)</option>
+      <option value="10" selected>十进制(10)</option>
+      <option value="16">十六进制(16)</option>
+    </select>
+  </div>
+  <div class="form-item">
+    <label>输入数字</label>
+    <input id="inputVal" placeholder="例如 255" value="255">
+  </div>
+  <div class="form-item">
+    <label>输出进制</label>
+    <select id="toBase">
+      <option value="2">二进制(2)</option>
+      <option value="8">八进制(8)</option>
+      <option value="10">十进制(10)</option>
+      <option value="16" selected>十六进制(16)</option>
+    </select>
+  </div>
+  <button id="convertBtn">转换</button>
+  <div class="form-item" style="margin-top:16px;">
+    <label>结果</label>
+    <input id="outputVal" readonly>
+  </div>
+  <button id="copyBtn" style="background:#059669;">复制结果</button>
+  <div class="desc">
+    仅支持整数，本地运算，不上传数据。十六进制支持大写小写。
+  </div>
+</div>
+
+<script>
+const fromBaseSel = document.getElementById('fromBase');
+const toBaseSel = document.getElementById('toBase');
+const inputEl = document.getElementById('inputVal');
+const outputEl = document.getElementById('outputVal');
+const convertBtn = document.getElementById('convertBtn');
+const copyBtn = document.getElementById('copyBtn');
+
+convertBtn.onclick = ()=>{
+  try{
+    const from = parseInt(fromBaseSel.value);
+    const to = parseInt(toBaseSel.value);
+    const num = parseInt(inputEl.value.trim(), from);
+    if(isNaN(num)) throw "无效数字";
+    outputEl.value = num.toString(to).toUpperCase();
+  }catch(err){
+    outputEl.value = "转换失败";
+  }
+};
+
+copyBtn.onclick = async ()=>{
+  try{
+    await navigator.clipboard.writeText(outputEl.value);
+    alert("复制成功");
+  }catch(e){
+    alert("复制失败");
+  }
+};
+</script>
+</body>
+</html>

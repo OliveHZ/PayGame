@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UUID生成器</title>
+<style>
+*{box-sizing:border-box;font-family:system-ui, sans-serif;}
+body{max-width:500px;margin:30px auto;padding:0 16px;background:#f7f8fa;}
+.card{background:white;padding:24px;border-radius:16px;box-shadow:0 2px 12px #00000012;}
+h2{margin-top:0;text-align:center;color:#222;}
+.form-item{margin-bottom:16px;}
+label{display:block;margin-bottom:6px;font-weight:500;color:#333;}
+input,textarea{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:16px;}
+textarea{min-height:120px;resize:vertical;}
+button{width:100%;padding:12px;border:none;border-radius:8px;background:#2563eb;color:white;font-size:16px;cursor:pointer;margin-top:8px;}
+button:hover{background:#1d4ed8;}
+.desc{margin-top:16px;color:#666;font-size:14px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>UUID v4 生成器</h2>
+  <div class="form-item">
+    <label>生成数量</label>
+    <input id="count" type="number" value="1" min="1" max="100">
+  </div>
+  <button id="genBtn">生成UUID</button>
+  <div class="form-item" style="margin-top:16px;">
+    <label>结果</label>
+    <textarea id="result" readonly></textarea>
+  </div>
+  <button id="copyBtn" style="background:#059669;">复制全部</button>
+  <div class="desc">
+    本地生成UUID v4，不上传任何数据。
+  </div>
+</div>
+
+<script>
+const countInput = document.getElementById('count');
+const resultArea = document.getElementById('result');
+const genBtn = document.getElementById('genBtn');
+const copyBtn = document.getElementById('copyBtn');
+
+function uuidv4() {
+  return crypto.randomUUID();
+}
+
+genBtn.onclick = ()=>{
+  const cnt = parseInt(countInput.value);
+  const list = [];
+  for(let i=0;i<cnt;i++){
+    list.push(uuidv4());
+  }
+  resultArea.value = list.join("\n");
+};
+
+copyBtn.onclick = async ()=>{
+  try{
+    await navigator.clipboard.writeText(resultArea.value);
+    alert("复制成功");
+  }catch(e){
+    alert("复制失败，手动复制");
+  }
+};
+</script>
+</body>
+</html>
