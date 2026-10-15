@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>通用二维码生成器</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;font-family:system-ui, sans-serif;}
+body{max-width:500px;margin:30px auto;padding:0 16px;background:#f7f8fa;}
+.card{background:white;padding:24px;border-radius:16px;box-shadow:0 2px 12px #00000012;}
+h2{margin-top:0;text-align:center;color:#222;}
+.form-item{margin-bottom:16px;}
+label{display:block;margin-bottom:6px;font-weight:500;color:#333;}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:16px;}
+textarea{min-height:80px;resize:vertical;}
+button{width:100%;padding:12px;border:none;border-radius:8px;background:#2563eb;color:white;font-size:16px;cursor:pointer;margin-top:8px;}
+button:hover{background:#1d4ed8;}
+#qrcode{display:block;margin:20px auto;border-radius:8px;}
+.desc{margin-top:16px;color:#666;font-size:14px;line-height:1.5;}
+.hide{display:none;}
+</style>
+</head>
+<body>
+<div class="card">
+  <h2>二维码生成器</h2>
+
+  <div class="form-item">
+    <label>生成模式</label>
+    <select id="mode">
+      <option value="wifi">WiFi二维码</option>
+      <option value="text">自定义文本二维码</option>
+    </select>
+  </div>
+
+  <!-- WiFi 表单区域 -->
+  <div id="wifiForm">
+    <div class="form-item">
+      <label>WiFi名称(SSID)</label>
+      <input id="ssid" placeholder="例如 HZ" value="admin">
+    </div>
+
+    <div class="form-item">
+      <label>WiFi密码</label>
+      <input id="pwd" placeholder="WiFi密码" value="admin">
+    </div>
+
+    <div class="form-item">
+      <label>加密类型</label>
+      <select id="encrypt">
+        <option value="WPA">WPA/WPA2（家用路由器，推荐）</option>
+        <option value="WEP">WEP（老旧）</option>
+        <option value="">无密码(OPEN)</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 自定义文本表单区域 -->
+  <div id="textForm" class="hide">
+    <div class="form-item">
+      <label>自定义文本</label>
+      <textarea id="customText" placeholder="输入任意文字、网址、NFC NDEF内容等"></textarea>
+    </div>
+  </div>
+
+  <div class="form-item">
+    <label>二维码尺寸</label>
+    <input id="size" type="number" value="350">
+  </div>
+
+  <canvas id="qrcode"></canvas>
+
+  <button id="downloadBtn">下载二维码图片</button>
+  <button id="copyNdefBtn" style="background:#059669;margin-top:10px;">复制内容文本（用于NFC标签写入）</button>
+
+  <div class="desc">
+    说明：所有计算在浏览器本地完成，内容不会上传到任何服务器。<br>
+    WiFi模式：安卓扫码一键连WiFi；iPhone扫码仅展示信息，iOS不支持自动连接WiFi。<br>
+    自定义文本模式：可输入网址、文字、NDEF字符串，适合写入NTAG215 NFC白卡。
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('qrcode');
+const modeSelect = document.getElementById('mode');
+const wifiForm = document.getElementById('wifiForm');
+const textForm = document.getElementById('textForm');
+const ssidInput = document.getElementById('ssid');
+const pwdInput = document.getElementById('pwd');
+const encryptSelect = document.getElementById('encrypt');
+const sizeInput = document.getElementById('size');
+const customTextInput = document.getElementById('customText');
+const downloadBtn = document.getElementById('downloadBtn');
+const copyNdefBtn = document.getElementById('copyNdefBtn');
+
+// 获取最终二维码文本
+function getContentString(){
+  if(modeSelect.value === 'wifi'){
+    const ssid = ssidInput.value;
+    const pwd = pwdInput.value;
+    const enc = encryptSelect.value;
+    if(!enc){
+      return `WIFI:T:;S:${ssid};;`;
+    }
+    return `WIFI:T:${enc};S:${ssid};P:${pwd};;`;
+  }else{
+    return customTextInput.value;
+  }
+}
+
+function renderQR(){
+  const text = getContentString();
+  const w = Number(sizeInput.value) || 350;
+  QRCode.toCanvas(canvas, text, {width:w}, function (error) {
+    if (error) console.error(error)
+  })
+}
+
+// 切换模式，显示/隐藏表单
+modeSelect.addEventListener('change', ()=>{
+  if(modeSelect.value === 'wifi'){
+    wifiForm.classList.remove('hide');
+    textForm.classList.add('hide');
+  }else{
+    wifiForm.classList.add('hide');
+    textForm.classList.remove('hide');
+  }
+  renderQR();
+});
+
+// 监听输入实时更新二维码
+ssidInput.addEventListener('input', renderQR);
+pwdInput.addEventListener('input', renderQR);
+encryptSelect.addEventListener('change', renderQR);
+sizeInput.addEventListener('input', renderQR);
+customTextInput.addEventListener('input', renderQR);
+
+// 下载图片
+downloadBtn.onclick = function(){
+  const link = document.createElement('a');
+  link.download = 'qrcode.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+};
+
+// 复制文本（给NFC Tools写卡用）
+copyNdefBtn.onclick = async function(){
+  const txt = getContentString();
+  try{
+    await navigator.clipboard.writeText(txt);
+    alert("已复制文本，可以直接粘贴到NFC Tools写入NTAG215卡片！");
+  }catch(e){
+    alert("复制失败，请手动复制：\n" + txt);
+  }
+};
+
+// 页面初始化渲染
+renderQR();
+</script>
+</body>
+</html>
