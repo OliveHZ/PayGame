@@ -3,77 +3,265 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>随机抽签</title>
+<title>圆盘抽签</title>
 <style>
 *{box-sizing:border-box;font-family:system-ui, sans-serif;}
-body{max-width:500px;margin:30px auto;padding:0 16px;background:#f7f8fa;}
-.card{background:white;padding:24px;border-radius:16px;box-shadow:0 2px 12px #00000012;}
+body{max-width:640px;margin:30px auto;padding:0 16px;background:linear-gradient(135deg,#f7f8fa,#eef2ff);}
+.card{background:white;padding:24px;border-radius:20px;box-shadow:0 10px 30px #00000018;}
 h2{margin-top:0;text-align:center;color:#222;}
 .form-item{margin-bottom:16px;}
 label{display:block;margin-bottom:6px;font-weight:500;color:#333;}
-input,textarea{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:16px;}
-textarea{min-height:140px;resize:vertical;}
-button{width:100%;padding:12px;border:none;border-radius:8px;background:#2563eb;color:white;font-size:16px;cursor:pointer;margin-top:8px;}
+textarea,select{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:10px;font-size:16px;background:#fafafa;}
+textarea{min-height:120px;resize:vertical;}
+button{width:100%;padding:12px;border:none;border-radius:10px;background:#2563eb;color:white;font-size:16px;cursor:pointer;margin-top:8px;transition:.2s;}
 button:hover{background:#1d4ed8;}
+button:disabled{background:#94a3b8;cursor:not-allowed;}
+
+.disk-wrap{display:flex;justify-content:center;align-items:center;margin:20px 0;}
+.disk-box{
+  position:relative;
+  width:360px;
+  height:360px;
+}
+/* 白色底板大圆，固定不动 */
+.disk-bg{
+  width:360px;
+  height:360px;
+  border-radius:50%;
+  background:#ffffff;
+  box-shadow:0 8px 24px rgba(0,0,0,0.12);
+  position:absolute;
+  top:0;
+  left:0;
+}
+/* 扇形画布，放在底板之上，同圆心，只有它旋转！ */
+#disk{
+  position:absolute;
+  top:0;
+  left:0;
+  width:360px;
+  height:360px;
+  border-radius:50%;
+  transition:transform 4s cubic-bezier(.17,.67,.12,.99);
+}
+/* 顶部红色三角指针，固定不动 */
+.pointer{
+  position:absolute;
+  top:-12px;
+  left:50%;
+  transform:translateX(-50%);
+  width:0;
+  height:0;
+  border-left:20px solid transparent;
+  border-right:20px solid transparent;
+  border-top:32px solid #ef4444;
+  z-index:10;
+}
+/* 中心空心红环，圆心完全居中，固定不动！ */
+.center-ring{
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  width:70px;
+  height:70px;
+  border-radius:50%;
+  border:6px solid #ef4444;
+  background:transparent;
+  z-index:9;
+}
+
+.result{min-height:120px;}
+.tip{color:#666;font-size:13px;margin:4px 0 12px;}
 .desc{margin-top:16px;color:#666;font-size:14px;line-height:1.5;}
 </style>
 </head>
 <body>
 <div class="card">
-  <h2>随机抽签</h2>
+  <h2>🎡 圆盘抽签</h2>
+
   <div class="form-item">
     <label>候选列表（一行一个）</label>
-    <textarea id="listText" placeholder="张三&#10;李四&#10;王五">张三
+    <textarea id="listText">张三
 李四
 王五
-赵六</textarea>
+赵六
+钱七
+孙八</textarea>
   </div>
+
   <div class="form-item">
-    <label>抽取数量</label>
-    <input id="drawCount" type="number" value="1" min="1">
+    <label>必中选项（选择【随机】则不锁定）</label>
+    <select id="mustSelect">
+      <option value="">——随机抽取——</option>
+    </select>
+    <div class="tip">下拉框选择项目，选中项将会必中；默认【随机抽取】</div>
   </div>
-  <button id="drawBtn">开始抽签</button>
+
+  <div class="disk-wrap">
+    <div class="disk-box">
+      <div class="pointer"></div>
+      <!-- 白色底板，固定不动 -->
+      <div class="disk-bg"></div>
+      <!-- 只有彩色扇形画布旋转 -->
+      <canvas id="disk"></canvas>
+      <!-- 中心红环固定不动 -->
+      <div class="center-ring"></div>
+    </div>
+  </div>
+
+  <button id="drawBtn">开始抽取</button>
+
   <div class="form-item" style="margin-top:16px;">
-    <label>抽到结果</label>
-    <textarea id="result" readonly></textarea>
+    <label>抽取结果</label>
+    <textarea id="result" class="result" readonly></textarea>
   </div>
+
   <button id="copyBtn" style="background:#059669;">复制结果</button>
+
   <div class="desc">
-    本地随机抽签，数据不会上传服务器。抽取不重复。
+    ✅白色底板固定不动，仅彩色扇区旋转；所有圆形圆心完全重合
   </div>
 </div>
 
 <script>
+const canvas = document.getElementById('disk');
+const ctx = canvas.getContext('2d');
 const listEl = document.getElementById('listText');
-const countEl = document.getElementById('drawCount');
+const mustSelectEl = document.getElementById('mustSelect');
 const resultEl = document.getElementById('result');
 const drawBtn = document.getElementById('drawBtn');
 const copyBtn = document.getElementById('copyBtn');
 
-drawBtn.onclick = ()=>{
-  const raw = listEl.value.split("\n").map(i=>i.trim()).filter(Boolean);
-  let num = parseInt(countEl.value);
-  if(num <1) num =1;
-  if(num>raw.length) num = raw.length;
+const colors = ['#6366f1','#ef4444','#f59e0b','#10b981','#06b6d4','#8b5cf6','#ec4899','#14b8a6','#f97316','#84cc16','#3b82f6','#a855f7'];
+let currentRotation = 0;
+let spinning = false;
 
-  // 洗牌算法
-  const arr = [...raw];
-  for(let i=arr.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [arr[i],arr[j]] = [arr[j],arr[i]];
+function resizeCanvas(){
+  const dpr = window.devicePixelRatio || 1;
+  const size = 360;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+
+function getList(){
+  return listEl.value.split('\n').map(i=>i.trim()).filter(Boolean);
+}
+
+// 更新下拉选项，候选列表变化自动刷新下拉
+function updateSelectOptions(){
+  const list = getList();
+  const oldVal = mustSelectEl.value;
+  mustSelectEl.innerHTML = `<option value="">——随机抽取——</option>`;
+  list.forEach(item=>{
+    const opt = document.createElement('option');
+    opt.value = item;
+    opt.innerText = item;
+    mustSelectEl.appendChild(opt);
+  })
+  // 如果原来选中的值还存在，则保留
+  if(list.includes(oldVal)){
+    mustSelectEl.value = oldVal;
+  }else{
+    mustSelectEl.value = "";
   }
-  const picked = arr.slice(0,num);
-  resultEl.value = picked.join("\n");
-};
+}
 
-copyBtn.onclick = async ()=>{
+function drawDisk(){
+  const list = getList();
+  const n = Math.max(list.length,1);
+  const size = 360;
+  const radius = size/2 - 20;
+  const step = (Math.PI*2)/n;
+
+  ctx.clearRect(0,0,size,size);
+
+  for(let i=0;i<n;i++){
+    const start = i*step - Math.PI/2;
+    const end = start + step;
+
+    ctx.beginPath();
+    ctx.moveTo(size/2,size/2);
+    ctx.arc(size/2,size/2,radius,start,end);
+    ctx.closePath();
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(size/2,size/2);
+    const midAngle = start + step/2;
+    ctx.rotate(midAngle);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 18px system-ui, sans-serif';
+    ctx.fillText(list[i], radius - 24, 6);
+    ctx.restore();
+  }
+}
+
+async function spin(){
+  if(spinning) return;
+  const list = getList();
+  if(list.length < 2){
+    resultEl.value = '请至少输入 2 个候选';
+    return;
+  }
+
+  spinning = true;
+  drawBtn.disabled = true;
+  resultEl.value = '🎡 抽取中...';
+
+  const n = list.length;
+  const stepAngle = 360 / n;
+  let winnerIndex;
+
+  // 下拉必中逻辑
+  const selectedItem = mustSelectEl.value.trim();
+  if(selectedItem){
+    winnerIndex = list.findIndex(item => item === selectedItem);
+  }else{
+    // 选择随机
+    winnerIndex = Math.floor(Math.random()*n);
+  }
+
+  const targetOffset = (360 - (winnerIndex * stepAngle + stepAngle/2)) % 360;
+  const extraTurn = 5 + Math.floor(Math.random()*3);
+  const newRotation = currentRotation + extraTurn*360 + targetOffset;
+
+  // 只旋转canvas扇形层，白色底板不动！
+  canvas.style.transform = `rotate(${newRotation}deg)`;
+  currentRotation = newRotation;
+
+  setTimeout(()=>{
+    resultEl.value = '🎉 抽中：\n' + list[winnerIndex];
+    spinning = false;
+    drawBtn.disabled = false;
+  },4000);
+}
+
+// 监听候选文本变化，自动更新下拉框
+listEl.addEventListener('input', ()=>{
+  updateSelectOptions();
+  drawDisk();
+});
+drawBtn.addEventListener('click', spin);
+copyBtn.addEventListener('click', async ()=>{
   try{
     await navigator.clipboard.writeText(resultEl.value);
-    alert("复制成功");
+    alert('复制成功');
   }catch(e){
-    alert("复制失败");
+    alert('复制失败');
   }
-};
+});
+
+// 初始化
+resizeCanvas();
+updateSelectOptions();
+drawDisk();
 </script>
 </body>
 </html>
